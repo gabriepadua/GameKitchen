@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Quansa Kitchen — Habbo Style</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a2e;overflow:hidden;font-family:'Segoe UI',sans-serif;color:#fff;display:flex}
+#gameContainer{flex:1;position:relative;overflow:hidden}
+#gameContainer canvas{display:block}
+
+/* ── Flash overlay ── */
+#flash{position:fixed;inset:0;pointer-events:none;z-index:50;opacity:0;transition:opacity .05s}
+#vignette{position:fixed;inset:0;pointer-events:none;z-index:49;
+  box-shadow:inset 0 0 80px rgba(0,0,0,.5);transition:box-shadow .3s}
+#vignette.rush{box-shadow:inset 0 0 60px rgba(231,76,60,.35),inset 0 0 120px rgba(0,0,0,.4)}
+#vignette.combo{box-shadow:inset 0 0 60px rgba(241,196,15,.25),inset 0 0 120px rgba(0,0,0,.3)}
+
+/* ── Announcement banner ── */
+#announce{position:fixed;top:16px;left:16px;transform:scale(0);transform-origin:top left;
+  z-index:60;pointer-events:none;font-size:28px;font-weight:900;
+  text-shadow:0 0 12px rgba(0,0,0,.8),0 2px 0 #000;
+  transition:transform .12s cubic-bezier(.17,.67,.35,1.5),opacity .25s;opacity:0;
+  white-space:nowrap;background:rgba(0,0,0,.5);padding:6px 14px;border-radius:8px}
+#announce.show{transform:scale(1);opacity:1}
+
+/* ── Floating texts container ── */
+#floats{position:fixed;top:54px;left:16px;pointer-events:none;z-index:55;
+  display:flex;flex-direction:column;gap:2px}
+.float-text{font-weight:800;font-size:14px;pointer-events:none;
+  animation:floatFade 1.4s ease-out forwards;white-space:nowrap;
+  text-shadow:0 1px 3px rgba(0,0,0,.7);background:rgba(0,0,0,.4);
+  padding:2px 8px;border-radius:4px;width:fit-content}
+@keyframes floatFade{
+  0%{opacity:1;transform:translateX(0)}
+  80%{opacity:.8}
+  100%{opacity:0;transform:translateX(-10px)}
+}
+
+/* ── UI Panel ── */
+#panel{width:360px;height:100vh;background:rgba(12,10,18,.97);border-left:3px solid #c0762a;
+  z-index:10;display:none;overflow-y:auto;padding:12px 16px;flex-shrink:0}
+#panel .hdr{font-size:18px;font-weight:bold;color:#2DC653;margin-bottom:2px}
+#panel .sub{font-size:10px;color:#888;margin-bottom:8px}
+#timer{font-size:52px;font-weight:900;text-align:center;line-height:1;transition:transform .1s}
+#timer.warn{color:#f39c12}
+#timer.urg{color:#e74c3c;animation:pulse .3s infinite}
+#timer.boom{transform:scale(1.15)}
+@keyframes pulse{50%{opacity:.3}}
+#score{font-size:18px;color:#f1c40f;font-weight:bold;margin:4px 0;transition:transform .1s}
+#score.pop{transform:scale(1.12)}
+#net{font-size:12px;color:#aaa}
+#combo{font-size:20px;color:#ff6;font-weight:900;text-align:center;height:26px;margin:4px 0;
+  transition:transform .15s;text-shadow:0 0 10px rgba(255,255,0,.5)}
+#combo.fire{animation:comboFire .3s ease-out;color:#ff4400;text-shadow:0 0 20px rgba(255,68,0,.8)}
+@keyframes comboFire{0%{transform:scale(1.8)}100%{transform:scale(1)}}
+#wave{font-size:13px;font-weight:bold;color:#f39c12;text-align:center;margin:2px 0}
+.sep{border-top:1px solid #c0762a33;margin:6px 0}
+.pay-title{font-size:13px;color:#c0762a;font-weight:bold;margin-bottom:4px}
+.wcard{display:flex;align-items:center;gap:10px;padding:8px;margin-bottom:6px;border-radius:8px;
+  border:2px solid #333;background:#1a1410;transition:all .15s}
+.wcard.danger{border-color:#e74c3c;animation:cardPulse .5s infinite}
+.wcard.warning{border-color:#f39c12}
+@keyframes cardPulse{50%{background:#2a1414;border-color:#ff4444}}
+.wcard .icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-size:16px;flex-shrink:0}
+.wcard .info{flex:1;min-width:0}
+.wcard .wname{font-size:13px;font-weight:bold}
+.wcard .wstatus{font-size:10px;color:#aaa;margin-top:1px}
+.wcard .bar-bg{height:10px;background:#333;border-radius:4px;margin-top:3px;overflow:hidden}
+.wcard .bar-fill{height:100%;border-radius:4px;transition:width .2s,background .2s}
+.wcard .pct{font-size:10px;font-weight:bold;margin-top:1px;text-align:right}
+.paybtn{background:#2DC653;border:none;color:#fff;font-weight:bold;font-size:13px;
+  padding:8px 12px;border-radius:8px;cursor:pointer;transition:transform .1s,background .1s;
+  flex-shrink:0;line-height:1.2;position:relative;overflow:hidden}
+.paybtn:hover{transform:scale(1.08);background:#34d85e}
+.paybtn:active{transform:scale(.92)}
+.paybtn .small{font-size:8px;font-weight:normal;opacity:.7;display:block}
+.paybtn.urgent{animation:btnUrgent .4s infinite;background:#e74c3c}
+@keyframes btnUrgent{50%{background:#ff6666;transform:scale(1.05)}}
+#stats{font-size:11px;color:#666;text-align:center;margin-top:6px}
+#footer{text-align:center;font-size:10px;color:#2DC65344;margin-top:8px}
+#beatBar{height:3px;background:#333;margin:4px 0;border-radius:2px;overflow:hidden}
+#beatFill{height:100%;background:linear-gradient(90deg,#2DC653,#f1c40f,#e74c3c);width:0%;
+  transition:width .1s;border-radius:2px}
+
+/* ── Screens ── */
+.overlay{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:10px;text-align:center}
+#title{background:rgba(6,3,1,.94)}
+#title h1{font-size:54px;color:#2DC653;text-shadow:0 0 40px #2DC65355}
+#title h2{font-size:18px;color:#e6a050;font-weight:normal}
+#title .how{background:rgba(20,16,10,.9);border:1px solid #c0762a;border-radius:12px;
+  padding:18px 28px;max-width:560px;font-size:13px;line-height:1.8;color:#ccc}
+#title .how b{color:#c0762a}
+#title .how .g{color:#2DC653}
+#title .how .y{color:#f1c40f}
+.bigbtn{padding:14px 36px;font-size:20px;font-weight:bold;border:none;border-radius:12px;
+  cursor:pointer;color:#fff;animation:btnpulse 1.2s infinite}
+.bigbtn.green{background:#2DC653}
+@keyframes btnpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+.hint{font-size:12px;color:#555}
+#gameover{background:rgba(0,0,0,.92);display:none}
+#gameover h1{font-size:48px;color:#c0762a}
+#go-score{font-size:42px;color:#f1c40f;font-weight:900}
+#go-stats{font-size:13px;color:#ccc;line-height:1.7}
+#go-rating{font-size:48px}
+#go-msg{font-size:13px;color:#2DC653;font-style:italic}
+
+/* ── Login Screen ── */
+#login{background:rgba(6,3,1,.96)}
+#login h1{font-size:48px;color:#2DC653;text-shadow:0 0 30px #2DC65355;margin-bottom:4px}
+#login h2{font-size:16px;color:#e6a050;font-weight:normal;margin-bottom:20px}
+#login .logo{font-size:52px;margin-bottom:8px}
+#login-form{background:rgba(20,16,10,.9);border:1px solid #c0762a;border-radius:14px;
+  padding:24px 32px;max-width:380px;width:90%;display:flex;flex-direction:column;gap:12px}
+#login-form label{font-size:12px;color:#c0762a;font-weight:bold;text-transform:uppercase;letter-spacing:1px}
+#login-form input{background:#1a1410;border:2px solid #333;border-radius:8px;padding:10px 14px;
+  color:#fff;font-size:15px;outline:none;transition:border-color .2s}
+#login-form input:focus{border-color:#2DC653}
+#login-form input::placeholder{color:#555}
+#login-err{font-size:11px;color:#e74c3c;min-height:16px}
+
+/* ── Leaderboard ── */
+#leaderboard{max-width:340px;width:100%;margin-top:12px}
+#leaderboard h3{font-size:14px;color:#c0762a;margin-bottom:6px;text-align:center}
+#lb-table{width:100%;border-collapse:collapse;font-size:12px}
+#lb-table th{color:#888;font-weight:normal;text-transform:uppercase;font-size:10px;
+  padding:4px 8px;border-bottom:1px solid #333;text-align:left}
+#lb-table td{padding:4px 8px;border-bottom:1px solid #222;color:#ccc}
+#lb-table tr.me td{color:#2DC653;font-weight:bold}
+#lb-table .rank{color:#c0762a;font-weight:bold;width:24px}
+#lb-table .lbscore{color:#f1c40f;font-weight:bold;text-align:right}
+</style>
+</head>
+<body>
+<div id="gameContainer"></div>
+<div id="flash"></div>
+<div id="vignette"></div>
+<div id="announce"></div>
+<div id="floats"></div>
+
+<!-- UI Panel -->
+<div id="panel">
+  <div class="hdr">QUANSA KITCHEN</div>
+  <div class="sub">Pague sua equipe — mantenha o restaurante vivo</div>
+  <div id="timer">1:30</div>
+  <div id="beatBar"><div id="beatFill"></div></div>
+  <div id="wave"></div>
+  <div id="score"></div>
+  <div id="net"></div>
+  <div id="combo"></div>
+  <div class="sep"></div>
+  <div class="pay-title">PAGUE SUA EQUIPE (1-4)</div>
+  <div id="cards"></div>
+  <div id="stats"></div>
+  <div id="footer">Powered by Quansa</div>
+</div>
+
+<!-- Login -->
+<div class="overlay" id="login">
+  <div class="logo">🍽️🔥</div>
+  <h1>QUANSA KITCHEN</h1>
+  <h2>Gerencie o caos. Sobreviva 90 segundos.</h2>
+  <div id="login-form">
+    <label>Seu nome</label>
+    <input type="text" id="inp-name" placeholder="Ex: Gabriel" maxlength="20" autocomplete="off">
+    <label>E-mail</label>
+    <input type="email" id="inp-email" placeholder="Ex: gab@email.com" maxlength="50" autocomplete="off">
+    <div id="login-err"></div>
+    <button class="bigbtn green" style="width:100%" onclick="doLogin()">ENTRAR</button>
+  </div>
+  <div id="leaderboard">
+    <h3>RANKING DOS LÍDERES</h3>
+    <table id="lb-table"><thead><tr><th class="rank">#</th><th>Nome</th><th class="lbscore">Score</th></tr></thead><tbody id="lb-body"></tbody></table>
+  </div>
+</div>
+
+<!-- Title / Menu -->
+<div class="overlay" id="title" style="display:none">
+  <div style="font-size:40px">🍽️🔥</div>
+  <h1>QUANSA KITCHEN</h1>
+  <h2 id="welcome-msg">Pronto para o caos?</h2>
+  <div class="how">
+    <b>COMO JOGAR</b><br><br>
+    <span style="color:#fff">💳 Teclas 1-4</span> — Pagar garçons (cooldown 4s)<br>
+    <span style="color:#fff">🖱️ Clique</span> — Limpar mesas sujas 🧹<br>
+    <span style="color:#fff">🖱️ Clique</span> — Coletar moedas douradas 💰<br>
+    <span style="color:#fff">🖱️ Clique</span> — Apagar fogões em chamas 🔥<br><br>
+    <span class="g">Garçons ficam lentos sem lealdade!</span><br>
+    <span class="y">Fogão em chamas = cozinha parada!</span><br>
+    Combos e VIPs dão mais grana<br>
+  </div>
+  <button class="bigbtn green" onclick="G.start()">JOGAR</button>
+  <div class="hint">Pressione ESPAÇO ou clique</div>
+  <div id="leaderboard2" style="margin-top:12px">
+    <h3>RANKING DOS LÍDERES</h3>
+    <table id="lb-table2" style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th class="rank" style="color:#888;font-size:10px;padding:4px 8px;text-align:left">#</th><th style="color:#888;font-size:10px;padding:4px 8px;text-align:left">Nome</th><th class="lbscore" style="color:#888;font-size:10px;padding:4px 8px;text-align:right">Score</th></tr></thead><tbody id="lb-body2"></tbody></table>
+  </div>
+</div>
+
+<!-- Game Over -->
+<div class="overlay" id="gameover">
+  <h1>TURNO ACABOU!</h1>
+  <div id="go-score"></div>
+  <div id="go-rating"></div>
+  <div id="go-stats"></div>
+  <div id="go-msg"></div>
+  <div id="leaderboard3" style="max-width:340px;width:100%;margin-top:8px">
+    <h3 style="font-size:14px;color:#c0762a;margin-bottom:6px;text-align:center">RANKING</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th class="rank" style="color:#888;font-size:10px;padding:4px 8px;text-align:left">#</th><th style="color:#888;font-size:10px;padding:4px 8px;text-align:left">Nome</th><th class="lbscore" style="color:#888;font-size:10px;padding:4px 8px;text-align:right">Score</th></tr></thead><tbody id="lb-body3"></tbody></table>
+  </div>
+  <button class="bigbtn green" onclick="G.start()">JOGAR DE NOVO</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/pixi.js@7/dist/pixi.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  QUANSA KITCHEN — JUICE EDITION (90 seconds of chaos)
+// ═══════════════════════════════════════════════════════════════
+
+// ── Player & Leaderboard (localStorage) ──────────────────────
+let player = {name:'', email:''};
+
+function getLeaderboard(){
+  try{return JSON.parse(localStorage.getItem('qk_leaderboard')||'[]');}catch(e){return[];}
+}
+function saveScore(name, score){
+  const lb=getLeaderboard();
+  // Update best score for this player, or add new entry
+  const existing=lb.find(e=>e.name===name);
+  if(existing){
+    if(score>existing.score) existing.score=score;
+  }else{
+    lb.push({name, score, date:Date.now()});
+  }
+  lb.sort((a,b)=>b.score-a.score);
+  // Keep top 20
+  localStorage.setItem('qk_leaderboard', JSON.stringify(lb.slice(0,20)));
+}
+function renderLeaderboard(tbodyId){
+  const lb=getLeaderboard();
+  const tbody=document.getElementById(tbodyId);
+  if(!tbody)return;
+  if(lb.length===0){
+    tbody.innerHTML='<tr><td colspan="3" style="color:#555;text-align:center;padding:12px">Nenhum score ainda</td></tr>';
+    return;
+  }
+  const medals=['🥇','🥈','🥉'];
+  tbody.innerHTML=lb.slice(0,10).map((e,i)=>{
+    const isMe=e.name===player.name;
+    return `<tr${isMe?' class="me"':''}>
+      <td class="rank">${medals[i]||i+1}</td>
+      <td>${e.name}</td>
+      <td class="lbscore">$${e.score}</td>
+    </tr>`;
+  }).join('');
+}
+
+function doLogin(){
+  const name=document.getElementById('inp-name').value.trim();
+  const email=document.getElementById('inp-email').value.trim();
+  const err=document.getElementById('login-err');
+  if(!name){err.textContent='Digite seu nome';return;}
+  if(!email||!email.includes('@')){err.textContent='Digite um e-mail válido';return;}
+  player={name,email};
+  // Save player info
+  localStorage.setItem('qk_player',JSON.stringify(player));
+  // Go to title screen
+  document.getElementById('login').style.display='none';
+  document.getElementById('title').style.display='flex';
+  document.getElementById('welcome-msg').textContent=`Fala, ${name}! Pronto pro caos?`;
+  renderLeaderboard('lb-body2');
+}
+
+// Auto-login if player saved
+(function(){
+  try{
+    const saved=JSON.parse(localStorage.getItem('qk_player')||'null');
+    if(saved&&saved.name){
+      player=saved;
+      document.getElementById('inp-name').value=saved.name;
+      document.getElementById('inp-email').value=saved.email||'';
+    }
+  }catch(e){}
+  renderLeaderboard('lb-body');
+})();
+
+// Enter key on login inputs
+document.getElementById('inp-name').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+document.getElementById('inp-email').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+const PANEL_W = 360;
+const DUR = 90;
+const TW = 64, TH = 32;
+
+// ── PixiJS Setup ─────────────────────────────────────────────
+const app = new PIXI.Application({
+  resizeTo: document.getElementById('gameContainer'),
+  backgroundColor: 0x1a1a2e,
+  antialias: false,
+  resolution: 1,
+});
+document.getElementById('gameContainer').appendChild(app.view);
+
+const world = new PIXI.Container();
+app.stage.addChild(world);
+world.sortableChildren = true;
+
+function resize() {
+  const cw = window.innerWidth - PANEL_W;
+  const ch = window.innerHeight;
+  document.getElementById('gameContainer').style.width = cw + 'px';
+  app.renderer.resize(cw, ch);
+  world.x = cw / 2;
+  world.y = 120;
+}
+window.addEventListener('resize', resize);
+
+// ── Isometric ────────────────────────────────────────────────
+function toScreen(c, r, z) {
+  z = z || 0;
+  return { x: (c - r) * (TW / 2), y: (c + r) * (TH / 2) - z * 32 };
+}
+function isoDepth(c, r) { return (c + r) * 100; }
+
+// ── Colors ───────────────────────────────────────────────────
+function hexToRgb(h){return{r:(h>>16)&0xFF,g:(h>>8)&0xFF,b:h&0xFF}}
+function rgbToHex(r,g,b){return(Math.min(255,Math.max(0,r|0))<<16)|(Math.min(255,Math.max(0,g|0))<<8)|Math.min(255,Math.max(0,b|0))}
+function lighten(h,a){const c=hexToRgb(h);return rgbToHex(c.r+(255-c.r)*a,c.g+(255-c.g)*a,c.b+(255-c.b)*a)}
+function darken(h,a){const c=hexToRgb(h);return rgbToHex(c.r*(1-a),c.g*(1-a),c.b*(1-a))}
+
+// ── Iso Box ──────────────────────────────────────────────────
+function isoBox(g, cx, cy, tw, td, h, color) {
+  const hw=tw*TW/2, hd=td*TW/2, th=tw*TH/2, dh=td*TH/2;
+  g.beginFill(lighten(color,.2));
+  g.drawPolygon([cx,cy-h, cx+hw,cy-h+th, cx+hw-hd,cy-h+th+dh, cx-hd,cy-h+dh]);
+  g.endFill();
+  g.beginFill(darken(color,.3));
+  g.drawPolygon([cx-hd,cy-h+dh, cx+hw-hd,cy-h+th+dh, cx+hw-hd,cy+th+dh, cx-hd,cy+dh]);
+  g.endFill();
+  g.beginFill(color);
+  g.drawPolygon([cx+hw,cy-h+th, cx+hw-hd,cy-h+th+dh, cx+hw-hd,cy+th+dh, cx+hw,cy+th]);
+  g.endFill();
+  g.lineStyle(1,0x000000,.5);
+  g.drawPolygon([cx,cy-h, cx+hw,cy-h+th, cx+hw-hd,cy-h+th+dh, cx-hd,cy-h+dh, cx,cy-h]);
+  g.moveTo(cx-hd,cy-h+dh);g.lineTo(cx-hd,cy+dh);
+  g.moveTo(cx-hd,cy+dh);g.lineTo(cx+hw-hd,cy+th+dh);
+  g.moveTo(cx+hw,cy-h+th);g.lineTo(cx+hw,cy+th);
+  g.moveTo(cx+hw,cy+th);g.lineTo(cx+hw-hd,cy+th+dh);
+  g.lineStyle(0);
+}
+
+// ── Grid ─────────────────────────────────────────────────────
+const COLS=14, ROWS=16;
+const COLLISION=[];
+for(let r=0;r<ROWS;r++){COLLISION[r]=[];for(let c=0;c<COLS;c++)COLLISION[r][c]=false;}
+for(let r=0;r<ROWS;r++){COLLISION[r][0]=true;COLLISION[r][COLS-1]=true;}
+for(let c=0;c<COLS;c++){COLLISION[0][c]=true;COLLISION[ROWS-1][c]=true;}
+
+// ── Floor ────────────────────────────────────────────────────
+const floorLayer=new PIXI.Container();floorLayer.zIndex=0;world.addChild(floorLayer);
+function drawFloorTile(c,r,c1,c2){
+  const pos=toScreen(c,r);const g=new PIXI.Graphics();
+  g.beginFill(c1);g.drawPolygon([pos.x,pos.y,pos.x+TW/2,pos.y+TH/2,pos.x,pos.y+TH,pos.x-TW/2,pos.y+TH/2]);g.endFill();
+  g.lineStyle(1,c2,.6);g.drawPolygon([pos.x,pos.y+1,pos.x+TW/2-1,pos.y+TH/2,pos.x,pos.y+TH-1,pos.x-TW/2+1,pos.y+TH/2]);g.lineStyle(0);
+  g.lineStyle(1,lighten(c1,.15),.5);g.moveTo(pos.x,pos.y+1);g.lineTo(pos.x-TW/2+1,pos.y+TH/2);g.lineStyle(0);
+  floorLayer.addChild(g);
+}
+for(let r=0;r<3;r++)for(let c=0;c<COLS;c++){const k=(c+r)%2===0;drawFloorTile(c,r,k?0x4A4A55:0x42424D,0x35353D);}
+for(let r=3;r<ROWS;r++)for(let c=0;c<COLS;c++){const k=(c+r)%2===0;drawFloorTile(c,r,k?0x9B7D5A:0x8B6E4E,k?0x7A6040:0x6B5535);}
+
+// ── Walls ────────────────────────────────────────────────────
+const wallLayer=new PIXI.Container();wallLayer.zIndex=1;world.addChild(wallLayer);
+const WALL_H=72;
+for(let c=0;c<COLS;c++){
+  const g=new PIXI.Graphics();const posB=toScreen(c,0);const hw=TW/2;const bc=0x6B4832;
+  g.beginFill(lighten(bc,.15));g.drawPolygon([posB.x+hw,posB.y+TH/2-WALL_H,posB.x,posB.y+TH-WALL_H,posB.x,posB.y+TH,posB.x+hw,posB.y+TH/2]);g.endFill();
+  g.beginFill(darken(bc,.1));g.drawPolygon([posB.x-hw,posB.y+TH/2-WALL_H,posB.x,posB.y+TH-WALL_H,posB.x,posB.y+TH,posB.x-hw,posB.y+TH/2]);g.endFill();
+  g.beginFill(lighten(bc,.3));g.drawPolygon([posB.x,posB.y-WALL_H,posB.x+hw,posB.y+TH/2-WALL_H,posB.x,posB.y+TH-WALL_H,posB.x-hw,posB.y+TH/2-WALL_H]);g.endFill();
+  g.lineStyle(2,0x8B6B50,1);g.moveTo(posB.x-hw,posB.y+TH/2-WALL_H+8);g.lineTo(posB.x,posB.y+TH-WALL_H+8);g.lineTo(posB.x+hw,posB.y+TH/2-WALL_H+8);g.lineStyle(0);
+  g.zIndex=-1000+c;wallLayer.addChild(g);
+}
+for(let r=0;r<ROWS;r++){
+  const g=new PIXI.Graphics();const posB=toScreen(0,r);const hw=TW/2;const bc=0x5A3D28;
+  g.beginFill(lighten(bc,.1));g.drawPolygon([posB.x+hw,posB.y+TH/2-WALL_H,posB.x,posB.y+TH-WALL_H,posB.x,posB.y+TH,posB.x+hw,posB.y+TH/2]);g.endFill();
+  g.beginFill(lighten(bc,.25));g.drawPolygon([posB.x,posB.y-WALL_H,posB.x+hw,posB.y+TH/2-WALL_H,posB.x,posB.y+TH-WALL_H,posB.x-hw,posB.y+TH/2-WALL_H]);g.endFill();
+  g.lineStyle(2,0x7A5A40,1);g.moveTo(posB.x+hw,posB.y+TH/2-WALL_H+8);g.lineTo(posB.x,posB.y+TH-WALL_H+8);g.lineStyle(0);
+  g.zIndex=-1000+r;wallLayer.addChild(g);
+}
+
+// ── Furniture ────────────────────────────────────────────────
+const objectLayer=new PIXI.Container();objectLayer.sortableChildren=true;objectLayer.zIndex=2;world.addChild(objectLayer);
+
+// Stoves
+const STOVE_POS=[{r:1,c:3},{r:1,c:5},{r:1,c:7},{r:1,c:9},{r:1,c:11}];
+STOVE_POS.forEach(s=>{
+  COLLISION[s.r][s.c]=true;const pos=toScreen(s.c,s.r);const g=new PIXI.Graphics();
+  isoBox(g,pos.x,pos.y+TH/2,.8,.8,18,0x3A3A44);
+  const ty=pos.y+TH/2-18;g.lineStyle(2,0xFF5500,.8);g.drawCircle(pos.x-5,ty+6,4);g.drawCircle(pos.x+8,ty+2,4);g.lineStyle(0);
+  g.beginFill(0xFF6600,.15);g.drawCircle(pos.x,ty+4,12);g.endFill();
+  g.zIndex=isoDepth(s.c,s.r);objectLayer.addChild(g);
+});
+
+// Counter
+for(let c=1;c<COLS-1;c++){
+  COLLISION[3][c]=true;const pos=toScreen(c,3);const g=new PIXI.Graphics();
+  isoBox(g,pos.x,pos.y+TH/2,.95,.5,20,0x9A9AA0);
+  if(c%2===0){const t=new PIXI.Text(['🍔','🍕','🥗','🍝','🍣'][c%5],{fontSize:14});t.anchor.set(.5);t.x=pos.x;t.y=pos.y+TH/2-24;g.addChild(t);}
+  g.zIndex=isoDepth(c,3);objectLayer.addChild(g);
+}
+
+// Tables
+const TABLE_DEFS=[
+  {tr:6,tc:3},{tr:6,tc:6},{tr:6,tc:9},{tr:6,tc:11},
+  {tr:9,tc:2},{tr:9,tc:5},{tr:9,tc:8},{tr:9,tc:11},
+  {tr:12,tc:3},{tr:12,tc:7},{tr:12,tc:10},
+];
+TABLE_DEFS.forEach(t=>{
+  COLLISION[t.tr][t.tc]=true;
+  const pos=toScreen(t.tc,t.tr);
+  // Chairs (also block collision so waiters walk AROUND the table area)
+  [{dc:0,dr:-1},{dc:-1,dr:0},{dc:1,dr:0},{dc:0,dr:1}].forEach(cp=>{
+    const cr=t.tr+cp.dr,cc=t.tc+cp.dc;
+    if(cr<0||cr>=ROWS||cc<0||cc>=COLS)return;
+    COLLISION[cr][cc]=true;
+    const cpos=toScreen(cc,cr);const cg=new PIXI.Graphics();
+    isoBox(cg,cpos.x,cpos.y+TH/2,.4,.4,8,0x8B5E3C);
+    isoBox(cg,cpos.x,cpos.y+TH/2,.35,.35,10,0xCC3333);
+    if(cp.dr<0||cp.dc<0){
+      cg.beginFill(0x6B4422);cg.drawRect(cpos.x-7,cpos.y+TH/2-26,3,18);cg.drawRect(cpos.x+4,cpos.y+TH/2-26,3,18);
+      cg.drawRect(cpos.x-7,cpos.y+TH/2-26,14,3);cg.drawRect(cpos.x-7,cpos.y+TH/2-20,14,2);cg.endFill();
+    }
+    cg.zIndex=isoDepth(cc,cr)-1;objectLayer.addChild(cg);
+  });
+  // Table
+  const tg=new PIXI.Graphics();
+  [[-0.2,-0.2],[0.2,-0.2],[-0.2,0.2],[0.2,0.2]].forEach(([ox,oy])=>{
+    tg.beginFill(darken(0x6B4E3A,.2));tg.drawRect(pos.x+ox*TW/2-1,pos.y+TH/2+oy*TH/2-16,3,16);tg.endFill();
+  });
+  isoBox(tg,pos.x,pos.y+TH/2,.85,.85,20,0xE8D4BA);
+  tg.beginFill(0xEEEEEE);tg.drawEllipse(pos.x-6,pos.y+TH/2-21,5,3);tg.drawEllipse(pos.x+6,pos.y+TH/2-21,5,3);tg.endFill();
+  tg.zIndex=isoDepth(t.tc,t.tr);objectLayer.addChild(tg);
+});
+
+// Plants & candles
+[{c:1,r:4},{c:12,r:4},{c:1,r:7},{c:12,r:7},{c:1,r:14},{c:12,r:14}].forEach(p=>{
+  const pos=toScreen(p.c,p.r);const g=new PIXI.Graphics();
+  isoBox(g,pos.x,pos.y+TH/2,.3,.3,10,0x8B5E3C);
+  g.beginFill(0x2D8B46);g.drawCircle(pos.x,pos.y+TH/2-18,8);g.drawCircle(pos.x-5,pos.y+TH/2-22,6);g.drawCircle(pos.x+4,pos.y+TH/2-20,5);g.endFill();
+  g.beginFill(0x3AAA56);g.drawCircle(pos.x-2,pos.y+TH/2-24,5);g.drawCircle(pos.x+3,pos.y+TH/2-22,4);g.endFill();
+  g.zIndex=isoDepth(p.c,p.r);objectLayer.addChild(g);
+});
+[{c:2,r:5},{c:11,r:5},{c:2,r:8},{c:11,r:8},{c:2,r:11},{c:11,r:11}].forEach(p=>{
+  const pos=toScreen(p.c,p.r);const g=new PIXI.Graphics();
+  g.beginFill(0xF5E6D3);g.drawRect(pos.x-2,pos.y+TH/2-10,4,10);g.endFill();
+  g.beginFill(0xFFB347);g.drawCircle(pos.x,pos.y+TH/2-13,3);g.endFill();
+  g.beginFill(0xFFDD57);g.drawCircle(pos.x,pos.y+TH/2-14,2);g.endFill();
+  g.beginFill(0xFFCC66,.08);g.drawCircle(pos.x,pos.y+TH/2-10,18);g.endFill();
+  g.zIndex=isoDepth(p.c,p.r)-5;objectLayer.addChild(g);
+});
+
+// ── Dynamic Layer ────────────────────────────────────────────
+const dynamicLayer=new PIXI.Container();dynamicLayer.sortableChildren=true;dynamicLayer.zIndex=3;world.addChild(dynamicLayer);
+
+// ── Character Graphics ───────────────────────────────────────
+function createChar(color,hat){
+  const g=new PIXI.Graphics();
+  g.beginFill(0x000000,.25);g.drawEllipse(0,4,10,5);g.endFill();
+  g.beginFill(0x2C3E50);g.drawRect(-5,-6,4,10);g.drawRect(1,-6,4,10);g.endFill();
+  g.beginFill(0x1A1A2E);g.drawRect(-6,2,5,3);g.drawRect(1,2,5,3);g.endFill();
+  g.beginFill(color);g.drawRect(-7,-20,14,15);g.endFill();
+  g.lineStyle(1,0x000000,.4);g.drawRect(-7,-20,14,15);g.lineStyle(0);
+  g.beginFill(0xF0F0F0);g.drawRect(-5,-14,10,9);g.endFill();
+  g.beginFill(0xF5D0A9);g.drawRect(-6,-30,12,11);g.endFill();
+  g.lineStyle(1,0x000000,.3);g.drawRect(-6,-30,12,11);g.lineStyle(0);
+  g.beginFill(hat);g.drawRect(-7,-33,14,6);g.drawRect(-7,-30,2,4);g.drawRect(5,-30,2,4);g.endFill();
+  g.beginFill(0xFFFFFF);g.drawRect(-4,-27,3,3);g.drawRect(1,-27,3,3);g.endFill();
+  g.beginFill(0x222222);g.drawRect(-3,-26,2,2);g.drawRect(2,-26,2,2);g.endFill();
+  g.beginFill(0xCC8866);g.drawRect(-2,-22,4,1);g.endFill();
+  return g;
+}
+function createTray(){
+  const c=new PIXI.Container();const g=new PIXI.Graphics();
+  g.beginFill(0xAAAAAA);g.drawEllipse(0,0,10,5);g.endFill();
+  g.lineStyle(1,0x888888,.6);g.drawEllipse(0,0,10,5);g.lineStyle(0);
+  c.addChild(g);c.x=12;c.y=-28;c.visible=false;return c;
+}
+function createBubble(){
+  const c=new PIXI.Container();
+  const bg=new PIXI.Graphics();c.addChild(bg);c._bg=bg;
+  const txt=new PIXI.Text('🍔',{fontSize:16});txt.anchor.set(.5,.5);txt.y=-4;c.addChild(txt);c._dishText=txt;
+  const barBg=new PIXI.Graphics();barBg.beginFill(0x444444);barBg.drawRect(-14,10,28,3);barBg.endFill();c.addChild(barBg);
+  const barFill=new PIXI.Graphics();c.addChild(barFill);c._barFill=barFill;
+  const vip=new PIXI.Text('⭐',{fontSize:10});vip.anchor.set(.5);vip.x=18;vip.y=-18;vip.visible=false;c.addChild(vip);c._vipBadge=vip;
+  c.visible=false;return c;
+}
+function drawBubbleBg(bg, vip){
+  bg.clear();
+  bg.beginFill(vip?0xFFF3D0:0xFFFFFF,vip?.95:.92);
+  bg.lineStyle(1.5,vip?0xDAA520:0x999999,1);
+  bg.drawRoundedRect(-16,-16,32,28,6);bg.endFill();
+  bg.beginFill(vip?0xFFF3D0:0xFFFFFF,vip?.95:.92);
+  bg.drawPolygon([-4,12,4,12,0,18]);bg.endFill();
+}
+
+// ── Particles ────────────────────────────────────────────────
+const particleLayer=new PIXI.Container();particleLayer.zIndex=100;world.addChild(particleLayer);
+const particles=[];
+function spawnP(wx,wy,n,color,emoji,big){
+  for(let i=0;i<n;i++){
+    const c=new PIXI.Container();
+    if(emoji){const t=new PIXI.Text(emoji,{fontSize:big?20:14});t.anchor.set(.5);c.addChild(t);}
+    else{const g=new PIXI.Graphics();g.beginFill(color);g.drawCircle(0,0,2+Math.random()*3);g.endFill();c.addChild(g);}
+    c.x=wx;c.y=wy;particleLayer.addChild(c);
+    const speed=big?5:3;
+    particles.push({sprite:c,vx:(Math.random()-.5)*speed,vy:-Math.random()*speed-1,life:1,decay:.012+Math.random()*.01});
+  }
+}
+
+// ── Floating Text (HTML overlay — super juicy) ───────────────
+const floatsEl=document.getElementById('floats');
+function floatText(screenX, screenY, text, color){
+  const el=document.createElement('div');
+  el.className='float-text';
+  el.textContent=text;
+  el.style.color=color;
+  floatsEl.appendChild(el);
+  // Keep max 6 entries in feed
+  while(floatsEl.children.length>6) floatsEl.removeChild(floatsEl.firstChild);
+  setTimeout(()=>{if(el.parentNode)el.remove();}, 1400);
+}
+
+// ── Screen Flash ─────────────────────────────────────────────
+const flashEl=document.getElementById('flash');
+function screenFlash(color, dur){
+  flashEl.style.background=color;
+  flashEl.style.opacity='0.3';
+  setTimeout(()=>{flashEl.style.opacity='0';}, dur||80);
+}
+
+// ── Announcement ─────────────────────────────────────────────
+const announceEl=document.getElementById('announce');
+let announceTimer=null;
+function announce(text, color, dur){
+  announceEl.textContent=text;
+  announceEl.style.color=color||'#fff';
+  announceEl.classList.add('show');
+  clearTimeout(announceTimer);
+  announceTimer=setTimeout(()=>announceEl.classList.remove('show'), dur||1200);
+}
+
+// ── A* Pathfinding ───────────────────────────────────────────
+function findPath(sc,sr,ec,er){
+  sc=Math.round(sc);sr=Math.round(sr);ec=Math.round(ec);er=Math.round(er);
+  if(sc===ec&&sr===er)return[{c:ec,r:er}];
+  if(ec<0||ec>=COLS||er<0||er>=ROWS)return null;
+  const open=[],closed=new Set(),came={},gS={},fS={};
+  const key=(c,r)=>c+','+r;const h=(c,r)=>Math.abs(c-ec)+Math.abs(r-er);
+  gS[key(sc,sr)]=0;fS[key(sc,sr)]=h(sc,sr);open.push({c:sc,r:sr});
+  let iter=0;
+  while(open.length&&iter<800){
+    iter++;open.sort((a,b)=>(fS[key(a.c,a.r)]||1e9)-(fS[key(b.c,b.r)]||1e9));
+    const cur=open.shift();const ck=key(cur.c,cur.r);
+    if(cur.c===ec&&cur.r===er){const p=[];let k=ck;while(k){const[a,b]=k.split(',').map(Number);p.unshift({c:a,r:b});k=came[k];}return p;}
+    closed.add(ck);
+    for(const[dc,dr]of[[0,1],[0,-1],[1,0],[-1,0]]){
+      const nc=cur.c+dc,nr=cur.r+dr;if(nc<0||nc>=COLS||nr<0||nr>=ROWS)continue;
+      const nk=key(nc,nr);if(closed.has(nk))continue;
+      if(COLLISION[nr][nc])continue;
+      const tg=(gS[ck]||0)+1;
+      if(tg<(gS[nk]||1e9)){came[nk]=ck;gS[nk]=tg;fS[nk]=tg+h(nc,nr);if(!open.find(n=>n.c===nc&&n.r===nr))open.push({c:nc,r:nr});}
+    }
+  }
+  return null;
+}
+function findAdj(tc,tr){
+  // Search at distance 2 first (outside the chair ring), then 3, then 1 as fallback
+  for(const dist of [2,3,1]){
+    for(const[dc,dr]of[[0,dist],[0,-dist],[dist,0],[-dist,0]]){
+      const nc=tc+dc,nr=tr+dr;
+      if(nc>=0&&nc<COLS&&nr>=0&&nr<ROWS&&!COLLISION[nr][nc])return{c:nc,r:nr};
+    }
+  }
+  return{c:tc,r:tr};
+}
+
+// ── Audio (ENERGETIC) ────────────────────────────────────────
+let audioCtx;
+function getAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+function snd(f,d=.1,t='sine',v=.15,dl=0){
+  try{const a=getAudio(),o=a.createOscillator(),g=a.createGain();o.type=t;o.frequency.value=f;g.gain.value=v;g.gain.exponentialRampToValueAtTime(.001,a.currentTime+dl+d);o.connect(g);g.connect(a.destination);o.start(a.currentTime+dl);o.stop(a.currentTime+dl+d);}catch(e){}
+}
+function sndPay(){snd(523,.06,'sine',.15);snd(659,.06,'sine',.15,.04);snd(784,.06,'sine',.15,.08);snd(1047,.1,'sine',.15,.12);snd(1318,.12,'sine',.12,.16);}
+function sndServe(){snd(880,.06,'sine',.12);snd(1108,.08,'sine',.12,.05);snd(1318,.1,'sine',.1,.1);}
+function sndFail(){snd(150,.25,'sawtooth',.12);snd(120,.3,'sawtooth',.08,.1);}
+function sndQuit(){snd(380,.1,'sawtooth',.12);snd(280,.1,'sawtooth',.12,.08);snd(180,.15,'sawtooth',.12,.16);}
+function sndBell(){snd(660,.08,'sine',.1);snd(880,.1,'sine',.1,.07);}
+function sndCombo(){[523,659,784,988,1175,1480].forEach((f,i)=>snd(f,.05,'sine',.08,i*.03));}
+function sndMegaCombo(){[523,659,784,988,1175,1480,1760,2093].forEach((f,i)=>snd(f,.06,'square',.06,i*.025));}
+
+// Background beat
+let beatInterval=null;
+let beatCount=0;
+function startBeat(){
+  stopBeat();
+  beatCount=0;
+  beatInterval=setInterval(()=>{
+    if(G.state!=='play'){stopBeat();return;}
+    beatCount++;
+    const bpm=120+G.wave*20;
+    const interval=60000/bpm;
+    clearInterval(beatInterval);
+    beatInterval=setInterval(arguments.callee, interval);
+    // Kick
+    snd(60,.08,'sine',.06);
+    if(beatCount%2===0) snd(200,.03,'square',.03);
+    // Visual beat
+    const bf=document.getElementById('beatFill');
+    bf.style.width='100%';
+    setTimeout(()=>{bf.style.width='0%';}, interval*.6);
+  }, 500);
+}
+function stopBeat(){if(beatInterval){clearInterval(beatInterval);beatInterval=null;}}
+
+// ── Game State ───────────────────────────────────────────────
+const DISHES=['🍔','🍕','🥗','🍝','🥩','🍣','🌮','🍜'];
+const DVAL=[15,20,12,18,25,22,14,19]; // low base earnings — tips & combos matter
+const WDEFS=[
+  {name:'Ana',col:0xE74C3C,hat:0xC0392B},
+  {name:'Bruno',col:0x2980B9,hat:0x1A5276},
+  {name:'Carla',col:0x8E44AD,hat:0x6C3483},
+  {name:'Diego',col:0xE67E22,hat:0xD35400},
+];
+const KITCHEN_POS=[{c:3,r:2},{c:5,r:2},{c:9,r:2},{c:11,r:2}];
+
+// ── Stove fire sprites (dynamic, on objectLayer) ─────────
+const stoveFireSprites=[];
+STOVE_POS.forEach((s,i)=>{
+  const pos=toScreen(s.c,s.r);
+  const fsCont=new PIXI.Container();
+  fsCont.x=pos.x;fsCont.y=pos.y+TH/2-28;
+  fsCont.zIndex=isoDepth(s.c,s.r)+10;fsCont.visible=false;
+  fsCont.interactive=true;fsCont.cursor='pointer';
+  // Fire glow
+  const fireGlow=new PIXI.Graphics();
+  fireGlow.beginFill(0xFF4400,.2);fireGlow.drawCircle(0,0,22);fireGlow.endFill();
+  fsCont.addChild(fireGlow);
+  // Fire emoji
+  const fireEmoji=new PIXI.Text('🔥',{fontSize:24});
+  fireEmoji.anchor.set(.5);fsCont.addChild(fireEmoji);
+  // "APAGAR!" label
+  const fireLabel=new PIXI.Text('APAGAR!',{fontSize:7,fontWeight:'bold',fill:0xFF4400,stroke:0x000000,strokeThickness:2});
+  fireLabel.anchor.set(.5,0);fireLabel.y=14;fsCont.addChild(fireLabel);
+  const si2=i;
+  fsCont.on('pointerdown',()=>G.extinguishFire(si2));
+  dynamicLayer.addChild(fsCont);
+  stoveFireSprites.push(fsCont);
+});
+
+// ── Floating coins (dynamic) ─────────────────────────────
+const coins=[];
+function spawnCoin(){
+  // Random walkable tile in dining area
+  let tc,tr;
+  for(let tries=0;tries<20;tries++){
+    tc=1+Math.floor(Math.random()*(COLS-2));
+    tr=4+Math.floor(Math.random()*(ROWS-5));
+    if(!COLLISION[tr][tc])break;
+  }
+  const pos=toScreen(tc,tr);
+  const c=new PIXI.Container();
+  c.x=pos.x;c.y=pos.y-10;
+  c.zIndex=isoDepth(tc,tr)+150;c.interactive=true;c.cursor='pointer';
+  // Golden glow circle
+  const glow=new PIXI.Graphics();
+  glow.beginFill(0xFFD700,.2);glow.drawCircle(0,0,20);glow.endFill();
+  glow.beginFill(0xFFD700,.1);glow.drawCircle(0,0,28);glow.endFill();
+  c.addChild(glow);
+  // Gold coin circle
+  const coinGfx=new PIXI.Graphics();
+  coinGfx.beginFill(0xFFD700);coinGfx.lineStyle(2,0xDAA520);coinGfx.drawCircle(0,0,12);coinGfx.endFill();
+  coinGfx.beginFill(0xFFF3D0);coinGfx.drawCircle(-2,-2,4);coinGfx.endFill(); // shine
+  c.addChild(coinGfx);
+  // $ symbol
+  const dollar=new PIXI.Text('$',{fontSize:12,fontWeight:'900',fill:0x8B6914});
+  dollar.anchor.set(.5);c.addChild(dollar);
+  // "CLIQUE!" label
+  const clickLabel=new PIXI.Text('CLIQUE!',{fontSize:8,fontWeight:'bold',fill:0xFFD700,stroke:0x000000,strokeThickness:2});
+  clickLabel.anchor.set(.5,0);clickLabel.y=14;c.addChild(clickLabel);
+  dynamicLayer.addChild(c);
+  const coin={sprite:c,gridC:tc,gridR:tr,life:5,value:20+Math.floor(Math.random()*25),bob:0}; // $20-$45 tips
+  c.on('pointerdown',()=>collectCoin(coin));
+  coins.push(coin);
+}
+function collectCoin(coin){
+  if(!coin.sprite.visible)return;
+  const val=coin.value;
+  G.score+=val;G.tipsCollected+=val;
+  const sx=world.x+coin.sprite.x, sy=world.y+coin.sprite.y;
+  floatText(sx,sy-20,`+$${val}`,'#FFD700',false);
+  snd(1200,.06,'sine',.12);snd(1500,.08,'sine',.1,.04);
+  coin.sprite.visible=false;coin.life=-1;
+}
+
+const G={
+  state:'title',time:DUR,score:0,spent:0,deliv:0,lost:0,
+  wave:0,custTimer:0,combo:0,bestCombo:0,animTime:0,
+  shakeX:0,shakeY:0,shakeAmt:0,intensity:0,
+  coinTimer:0,fireTimer:0,tipsCollected:0,tablesClean:0,firesOut:0,
+  stoveFires:[false,false,false,false,false], // which stoves are on fire
+  waiters:[],tables:[],
+
+  start(){
+    this.state='play';this.time=DUR;
+    this.score=0;this.spent=0;this.deliv=0;this.lost=0;
+    this.wave=0;this.combo=0;this.bestCombo=0;this.custTimer=0;
+    this.shakeAmt=0;this.intensity=0;
+    this.coinTimer=0;this.fireTimer=0;this.tipsCollected=0;this.tablesClean=0;this.firesOut=0;
+    this.stoveFires=[false,false,false,false,false];
+    stoveFireSprites.forEach(s=>s.visible=false);
+
+    // Clear coins
+    coins.forEach(c=>{dynamicLayer.removeChild(c.sprite);c.sprite.destroy();});
+    coins.length=0;
+
+    this.waiters.forEach((w,i)=>{
+      w.gridC=KITCHEN_POS[i].c;w.gridR=KITCHEN_POS[i].r;
+      w.fromC=w.gridC;w.fromR=w.gridR;
+      w.state='idle';w.loyalty=100;w.assigned=-1;
+      w.dishIdx=-1;w.showTray=false;w.path=null;w.pathIdx=0;
+      w.pickupTimer=0;w.deliverTimer=0;w.delivs=0;w.vip=false;w.moveProgress=0;
+      w.payCooldown=0; // COOLDOWN
+      const pos=toScreen(w.gridC,w.gridR);w.sprite.x=pos.x;w.sprite.y=pos.y;
+      w.traySprite.visible=false;w.strikeText.visible=false;
+    });
+    this.tables.forEach(t=>{
+      t.hasCust=false;t.order=-1;t.patience=0;t.maxPat=14;
+      t.delivered=false;t.eatTimer=0;t.vip=false;t.assignedWaiter=-1;
+      t.dirty=false;t.useCount=0;t.dirtyAfter=2+Math.floor(Math.random()*2);
+      t.bubble.visible=false;
+      if(t.dirtySprite) t.dirtySprite.visible=false;
+    });
+    particles.forEach(p=>{particleLayer.removeChild(p.sprite);p.sprite.destroy();});
+    particles.length=0;
+
+    document.getElementById('panel').style.display='block';
+    document.getElementById('login').style.display='none';
+    document.getElementById('title').style.display='none';
+    document.getElementById('gameover').style.display='none';
+    document.getElementById('vignette').className='';
+
+    announce('GO!','#2DC653',800);
+    sndBell();
+    startBeat();
+  },
+
+  pay(i){
+    if(this.state!=='play')return;
+    const w=this.waiters[i];if(!w)return;
+    // COOLDOWN CHECK
+    if(w.payCooldown>0){
+      snd(200,.05,'sawtooth',.05); // error sound
+      const btn=document.getElementById(`wpb${i}`);
+      btn.style.transform='scale(.9)';setTimeout(()=>btn.style.transform='',100);
+      return;
+    }
+    const cost=w.state==='striking'?80:30;
+    if(w.loyalty>=100&&w.state!=='striking')return;
+    w.loyalty=Math.min(100,w.loyalty+32);
+    this.spent+=cost;this.score-=cost;
+    w.payCooldown=4000; // 4 SECOND COOLDOWN
+    if(w.state==='striking'){w.state='idle';announce(w.name+' VOLTOU!','#2DC653',800);}
+    const pos=toScreen(w.gridC,w.gridR);
+    spawnP(world.x+pos.x,world.y+pos.y-30,3,0x2DC653,'💚',false);
+    sndPay();
+    const card=document.getElementById(`wc${i}`);
+    card.style.transform='scale(1.08)';setTimeout(()=>card.style.transform='',150);
+  },
+
+  cleanTable(tableId){
+    const t=this.tables[tableId];
+    if(!t||!t.dirty)return;
+    t.dirty=false;
+    if(t.dirtySprite) t.dirtySprite.visible=false;
+    this.tablesClean++;
+    snd(800,.06,'sine',.1);snd(1000,.08,'sine',.08,.04);
+  },
+
+  extinguishFire(stoveIdx){
+    if(!this.stoveFires[stoveIdx])return;
+    this.stoveFires[stoveIdx]=false;
+    stoveFireSprites[stoveIdx].visible=false;
+    this.firesOut++;
+    snd(400,.1,'sine',.1);snd(300,.15,'sine',.08,.05);
+    this.score+=20; // bonus for putting out fire
+  },
+
+  spawn(){
+    const free=this.tables.filter(t=>!t.hasCust&&!t.dirty);
+    if(!free.length)return;
+    const t=free[Math.floor(Math.random()*free.length)];
+    t.hasCust=true;t.order=Math.floor(Math.random()*DISHES.length);
+    t.delivered=false;t.eatTimer=0;t.assignedWaiter=-1;
+    t.vip=this.wave>=1&&Math.random()<0.2;
+    const basePat=Math.max(7, 14-this.wave*2);
+    t.maxPat=t.vip?basePat/2:basePat;
+    t.patience=t.maxPat;
+    t.bubble.visible=true;t.bubble._dishText.text=DISHES[t.order];
+    t.bubble._vipBadge.visible=t.vip;
+    drawBubbleBg(t.bubble._bg,t.vip);
+    t.bubble.scale.set(0);
+    let s=0;const anim=()=>{s+=.15;t.bubble.scale.set(Math.min(1,s));if(s<1)requestAnimationFrame(anim);};anim();
+    if(t.vip){screenFlash('#FFD700',100);snd(1318,.1,'sine',.1);snd(1760,.12,'sine',.08,.05);}
+    sndBell();
+  },
+
+  endGame(){
+    this.state='over';stopBeat();
+    const net=this.score;
+    let stars,msg;
+    if(net>=400){stars='⭐⭐⭐';msg='LENDÁRIO! Mestre da cozinha!';}
+    else if(net>=200){stars='⭐⭐';msg='Muito bom! Quase perfeito.';}
+    else if(net>=50){stars='⭐';msg='Deu pro gasto. Tente de novo!';}
+    else{stars='💀';msg='Falência total. De novo?';}
+    document.getElementById('go-score').textContent='$'+net;
+    document.getElementById('go-rating').textContent=stars;
+    const strikes=this.waiters.filter(w=>w.state==='striking').length;
+    document.getElementById('go-stats').innerHTML=
+      `🍽️ Entregas: ${this.deliv} | 😡 Perdidos: ${this.lost}<br>🔥 Combo: x${this.bestCombo} | ⛔ Greves: ${strikes}<br>💸 Gastos: $${this.spent} | 🪙 Gorjetas: $${this.tipsCollected}<br>🧹 Mesas limpas: ${this.tablesClean} | 🔥 Incêndios: ${this.firesOut}`;
+    document.getElementById('go-msg').textContent=msg;
+    // Save to leaderboard
+    if(player.name) saveScore(player.name, net);
+    renderLeaderboard('lb-body3');
+    document.getElementById('gameover').style.display='flex';
+  }
+};
+
+// ── Create Waiters ───────────────────────────────────────────
+WDEFS.forEach((def,i)=>{
+  const container=new PIXI.Container();container.sortableChildren=true;
+  const body=createChar(def.col,def.hat);container.addChild(body);
+  const tray=createTray();container.addChild(tray);
+  const nameText=new PIXI.Text(def.name,{fontSize:10,fontWeight:'bold',fill:0xFFFFFF,stroke:0x000000,strokeThickness:3});
+  nameText.anchor.set(.5,1);nameText.y=-42;container.addChild(nameText);
+  const barBg=new PIXI.Graphics();barBg.beginFill(0x333333);barBg.drawRect(-14,-38,28,4);barBg.endFill();container.addChild(barBg);
+  const barFill=new PIXI.Graphics();container.addChild(barFill);
+  const strikeText=new PIXI.Text('⛔',{fontSize:18});strikeText.anchor.set(.5);strikeText.y=-50;strikeText.visible=false;container.addChild(strikeText);
+  const pos=toScreen(KITCHEN_POS[i].c,KITCHEN_POS[i].r);
+  container.x=pos.x;container.y=pos.y;container.zIndex=isoDepth(KITCHEN_POS[i].c,KITCHEN_POS[i].r)+50;
+  dynamicLayer.addChild(container);
+  G.waiters.push({id:i,name:def.name,col:def.col,hat:def.hat,
+    gridC:KITCHEN_POS[i].c,gridR:KITCHEN_POS[i].r,
+    fromC:KITCHEN_POS[i].c,fromR:KITCHEN_POS[i].r,
+    state:'idle',loyalty:100,assigned:-1,
+    dishIdx:-1,showTray:false,path:null,pathIdx:0,
+    pickupTimer:0,deliverTimer:0,delivs:0,vip:false,moveProgress:0,
+    payCooldown:0,
+    sprite:container,bodyGfx:body,traySprite:tray,
+    barFill:barFill,strikeText:strikeText,nameText:nameText
+  });
+});
+
+// ── Create Tables ────────────────────────────────────────────
+TABLE_DEFS.forEach((td,i)=>{
+  const bubble=createBubble();
+  const pos=toScreen(td.tc,td.tr);
+  bubble.x=pos.x;bubble.y=pos.y-28;bubble.zIndex=isoDepth(td.tc,td.tr)+200;
+  dynamicLayer.addChild(bubble);
+  // Dirty table sprite (container with glow + icon + label)
+  const dirtySprite=new PIXI.Container();
+  dirtySprite.x=pos.x;dirtySprite.y=pos.y-20;
+  dirtySprite.zIndex=isoDepth(td.tc,td.tr)+190;dirtySprite.visible=false;
+  dirtySprite.interactive=true;dirtySprite.cursor='pointer';
+  // Pulsing orange glow background
+  const dirtyGlow=new PIXI.Graphics();
+  dirtyGlow.beginFill(0xF39C12,.25);dirtyGlow.drawCircle(0,0,18);dirtyGlow.endFill();
+  dirtyGlow.beginFill(0xF39C12,.12);dirtyGlow.drawCircle(0,0,26);dirtyGlow.endFill();
+  dirtySprite.addChild(dirtyGlow);
+  // Broom emoji
+  const broomTxt=new PIXI.Text('🧹',{fontSize:22});
+  broomTxt.anchor.set(.5);dirtySprite.addChild(broomTxt);
+  // "LIMPAR" label
+  const cleanLabel=new PIXI.Text('LIMPAR',{fontSize:8,fontWeight:'bold',fill:0xF39C12,stroke:0x000000,strokeThickness:2});
+  cleanLabel.anchor.set(.5,0);cleanLabel.y=14;dirtySprite.addChild(cleanLabel);
+  dirtySprite._glow=dirtyGlow;
+  const tableId=i;
+  dirtySprite.on('pointerdown',()=>G.cleanTable(tableId));
+  dynamicLayer.addChild(dirtySprite);
+
+  G.tables.push({id:i,gridC:td.tc,gridR:td.tr,hasCust:false,order:-1,patience:0,maxPat:14,
+    delivered:false,eatTimer:0,vip:false,assignedWaiter:-1,dirty:false,
+    useCount:0,dirtyAfter:2+Math.floor(Math.random()*2), // dirty after 2 or 3 uses
+    bubble:bubble,dirtySprite:dirtySprite});
+});
+
+// ── Waiter AI (FASTER) ──────────────────────────────────────
+function moveW(w,dt){
+  if(!w.path||w.pathIdx>=w.path.length)return true;
+  // FASTER movement: 0.05 base (was 0.035)
+  // Speed drops dramatically as loyalty falls: 100%=fast, 50%=medium, 20%=crawling
+  const loyaltyFactor=Math.pow(w.loyalty/100, 1.8); // exponential slowdown
+  const speed=0.03*(0.15+loyaltyFactor*0.85)*(dt/16);
+  w.moveProgress+=speed;
+  if(w.moveProgress>=1){
+    const target=w.path[w.pathIdx];w.gridC=target.c;w.gridR=target.r;
+    w.fromC=target.c;w.fromR=target.r;w.moveProgress=0;w.pathIdx++;
+    if(w.pathIdx>=w.path.length){w.path=null;return true;}
+  }
+  const next=w.path[w.pathIdx];
+  if(next){w.gridC=w.fromC+(next.c-w.fromC)*w.moveProgress;w.gridR=w.fromR+(next.r-w.fromR)*w.moveProgress;}
+  return false;
+}
+
+function setPath(w,tc,tr){
+  const sc=Math.round(w.gridC),sr=Math.round(w.gridR);
+  w.path=findPath(sc,sr,tc,tr);w.pathIdx=0;w.fromC=sc;w.fromR=sr;w.moveProgress=0;
+  if(!w.path)w.path=[{c:tc,r:tr}];
+}
+
+function waiterAI(w,dt){
+  switch(w.state){
+    case 'idle':{
+      // Pick a random available table (not always the most urgent — feels more natural)
+      const avail=G.tables.filter(t=>t.hasCust&&!t.delivered&&t.assignedWaiter===-1);
+      if(avail.length>0){
+        // Small delay before picking — stagger waiter departures
+        if(!w._idleDelay){w._idleDelay=200+Math.random()*600;w._idleWait=0;}
+        w._idleWait=(w._idleWait||0)+dt;
+        if(w._idleWait>=w._idleDelay){
+          const pick=avail[Math.floor(Math.random()*avail.length)];
+          w.assigned=pick.id;pick.assignedWaiter=w.id;w.vip=pick.vip;
+          w.state='toKitchen';setPath(w,KITCHEN_POS[w.id].c,KITCHEN_POS[w.id].r);
+          w._idleDelay=null;w._idleWait=0;
+        }
+      }else{w._idleDelay=null;w._idleWait=0;}
+      break;
+    }
+    case 'toKitchen':if(moveW(w,dt)){w.state='pickup';w.pickupTimer=0;}break;
+    case 'pickup':
+      // Count working stoves — need at least 1 free to cook
+      {const workingStoves=G.stoveFires.filter(f=>!f).length;
+      if(workingStoves===0){w.pickupTimer=0;break;} // no stoves = no food!
+      // More fires = slower cooking (fewer stoves sharing load)
+      const cookSpeed=workingStoves/STOVE_POS.length; // 1.0=all working, 0.2=1 stove left
+      w.pickupTimer+=dt*cookSpeed;
+      if(w.pickupTimer>400){
+        const t=G.tables[w.assigned];
+        if(t&&t.hasCust){
+          w.dishIdx=t.order;w.showTray=true;w.traySprite.visible=true;
+          if(w.traySprite.children.length>1)w.traySprite.removeChildAt(1);
+          const dishTxt=new PIXI.Text(DISHES[w.dishIdx],{fontSize:12});dishTxt.anchor.set(.5,.8);w.traySprite.addChild(dishTxt);
+          w.state='toTable';const adj=findAdj(t.gridC,t.gridR);setPath(w,adj.c,adj.r);
+        }else{w.state='idle';w.assigned=-1;}
+      }}break;
+    case 'toTable':
+      if(moveW(w,dt)){w.state='delivering';w.deliverTimer=0;}
+      {const t=G.tables[w.assigned];
+      if(t&&!t.hasCust){
+        w.state='returning';w.showTray=false;w.traySprite.visible=false;w.dishIdx=-1;
+        setPath(w,KITCHEN_POS[w.id].c,KITCHEN_POS[w.id].r);w.assigned=-1;
+      }}break;
+    case 'delivering':
+      w.deliverTimer+=dt;
+      if(w.deliverTimer>200){ // Faster delivery (was 300)
+        const t=G.tables[w.assigned];
+        if(t&&t.hasCust&&!t.delivered){
+          t.delivered=true;t.eatTimer=0;
+          const tip=Math.max(0,(t.patience/t.maxPat)*15);
+          const cm=G.combo>=10?1.8:G.combo>=7?1.5:G.combo>=5?1.3:G.combo>=3?1.15:1;
+          const vm=t.vip?2:1;
+          const earn=Math.round((DVAL[w.dishIdx]+tip)*cm*vm);
+          G.score+=earn;G.deliv++;G.combo++;
+          if(G.combo>G.bestCombo)G.bestCombo=G.combo;
+          w.loyalty-=8+G.wave*2.5;w.delivs++;
+          t.bubble._dishText.text='😋';t.bubble._barFill.clear();
+
+          // === JUICE ===
+          const pos=toScreen(w.gridC,w.gridR);
+          const sx=world.x+pos.x, sy=world.y+pos.y;
+
+          // Floating score (only text, no particles for normal deliveries)
+          floatText(sx,sy-50,`+$${earn}`,t.vip?'#FFD700':'#2DC653',false);
+          if(t.vip) spawnP(sx,sy-20,4,0xFFD700,null,false);
+
+          // Combo announcements (only at milestones)
+          if(G.combo===5){announce('COMBO x5!','#FF8800',800);sndCombo();}
+          else if(G.combo===10){announce('x10 INSANO!','#FF0000',1200);sndMegaCombo();G.shakeAmt=5;}
+          else if(G.combo>10&&G.combo%5===0){announce('x'+G.combo+'!','#FF0000',1000);sndMegaCombo();}
+          else sndServe();
+        }
+        w.showTray=false;w.traySprite.visible=false;w.dishIdx=-1;w.state='returning';
+        if(G.tables[w.assigned])G.tables[w.assigned].assignedWaiter=-1;
+        w.assigned=-1;setPath(w,KITCHEN_POS[w.id].c,KITCHEN_POS[w.id].r);
+      }break;
+    case 'returning':if(moveW(w,dt))w.state='idle';break;
+    case 'striking':break;
+  }
+  if(w.loyalty<=0&&w.state!=='striking'){
+    w.loyalty=0;w.state='striking';w.showTray=false;w.traySprite.visible=false;w.path=null;
+    if(w.assigned>=0){G.tables[w.assigned].assignedWaiter=-1;w.assigned=-1;}
+    sndQuit();G.shakeAmt=6;
+    announce('⛔ '+w.name+' GREVE!','#E74C3C',1000);
+  }
+}
+
+// ── Input ────────────────────────────────────────────────────
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'){
+    // Don't trigger if typing in input
+    if(document.activeElement&&document.activeElement.tagName==='INPUT')return;
+    if(G.state==='title'||G.state==='over'){e.preventDefault();G.start();}
+  }
+  if(e.key>='1'&&e.key<='4'&&G.state==='play')G.pay(parseInt(e.key)-1);
+});
+
+// Waiter cards
+const cardsEl=document.getElementById('cards');
+WDEFS.forEach((def,i)=>{
+  cardsEl.innerHTML+=`
+    <div class="wcard" id="wc${i}" onclick="G.pay(${i})">
+      <div class="icon" style="background:#${def.col.toString(16).padStart(6,'0')}">🧑‍🍳</div>
+      <div class="info">
+        <div class="wname">${def.name}</div>
+        <div class="wstatus" id="ws${i}">Pronto</div>
+        <div class="bar-bg"><div class="bar-fill" id="wb${i}" style="width:100%;background:#2DC653"></div></div>
+        <div class="pct" id="wp${i}">100%</div>
+      </div>
+      <button class="paybtn" id="wpb${i}" onclick="event.stopPropagation();G.pay(${i})">PAGAR<span class="small">$30</span></button>
+    </div>`;
+});
+
+// ── HUD ──────────────────────────────────────────────────────
+function updateHUD(){
+  const m=Math.floor(G.time/60),s=Math.floor(G.time%60);
+  const tEl=document.getElementById('timer');
+  tEl.textContent=`${m}:${s.toString().padStart(2,'0')}`;
+  tEl.className=G.time<20?'urg':G.time<45?'warn':'';
+
+  // Timer boom effect on low time
+  if(G.time<15&&G.time%1<.05) tEl.classList.add('boom');
+  else tEl.classList.remove('boom');
+
+  const earned=Math.max(0,G.score+G.spent);
+  document.getElementById('score').textContent=`💰 $${earned} ganhos | 💸 $${G.spent} gastos`;
+  document.getElementById('net').textContent=`LUCRO: $${G.score}`;
+
+  const comboEl=document.getElementById('combo');
+  if(G.combo>=3){
+    comboEl.textContent=`🔥 COMBO x${G.combo}! (${G.combo>=10?'2.5':G.combo>=7?'2.0':G.combo>=5?'1.6':'1.3'}×)`;
+    if(G.combo>=7)comboEl.classList.add('fire');else comboEl.classList.remove('fire');
+  }else comboEl.textContent='';
+
+  const we=['🌊 WAVE 1','🌊🌊 WAVE 2','🌋 WAVE 3','💀 WAVE FINAL'];
+  document.getElementById('wave').textContent=we[G.wave]||'';
+
+  // Vignette
+  const vig=document.getElementById('vignette');
+  if(G.time<20)vig.className='rush';
+  else if(G.combo>=7)vig.className='combo';
+  else vig.className='';
+
+  G.waiters.forEach((w,i)=>{
+    const fill=document.getElementById(`wb${i}`);
+    const pct=document.getElementById(`wp${i}`);
+    const status=document.getElementById(`ws${i}`);
+    const btn=document.getElementById(`wpb${i}`);
+    const card=document.getElementById(`wc${i}`);
+    const lp=w.loyalty/100;
+    fill.style.width=`${w.loyalty}%`;
+    fill.style.background=lp>.5?'#2DC653':lp>.25?'#F39C12':'#E74C3C';
+    pct.textContent=`${Math.round(w.loyalty)}%`;
+    pct.style.color=lp<.2?'#E74C3C':lp<.4?'#F39C12':'#aaa';
+
+    // Card urgency classes
+    card.className='wcard'+(w.state==='striking'?' danger':lp<.2?' danger':lp<.4?' warning':'');
+
+    const sn={idle:'⏳ Esperando',toKitchen:'🏃 Cozinha!',pickup:'📦 Pegando',
+      toTable:'🚶 Levando!',delivering:'🍽️ Servindo!',returning:'↩️ Voltando',striking:'⛔ EM GREVE!'};
+    status.textContent=sn[w.state]||w.state;
+    const cost=w.state==='striking'?80:30;
+    const cd=w.payCooldown;
+    if(cd>0){
+      btn.innerHTML=`⏳ ${(cd/1000).toFixed(1)}s`;
+      btn.className='paybtn';
+      btn.style.background='#555';
+    }else{
+      btn.innerHTML=`PAGAR<span class="small">$${cost}</span>`;
+      btn.className='paybtn'+(w.state==='striking'||lp<.2?' urgent':'');
+      btn.style.background=w.state==='striking'?'#E74C3C':lp<.2?'#F39C12':'#2DC653';
+    }
+  });
+
+  const dirtyCount=G.tables.filter(t=>t.dirty).length;
+  const fireCount=G.stoveFires.filter(f=>f).length;
+  document.getElementById('stats').innerHTML=
+    `🍽️${G.deliv} entregas | 😡${G.lost} perdidos | 🔥x${G.bestCombo}`+
+    (dirtyCount?` | <span style="color:#f39c12">🧹${dirtyCount} sujas</span>`:'')+
+    (fireCount?` | <span style="color:#e74c3c">🔥${fireCount} fogo!</span>`:'');
+}
+
+// ── MAIN LOOP ────────────────────────────────────────────────
+app.ticker.add(()=>{
+  const dt=app.ticker.deltaMS;
+  if(G.state==='play'){
+    G.animTime+=dt/1000;
+    G.time-=dt/1000;
+    if(G.time<=0){G.time=0;G.endGame();return;}
+
+    // Intensity (0-1 based on how chaotic things are)
+    const activeCust=G.tables.filter(t=>t.hasCust&&!t.delivered).length;
+    const lowLoyalty=G.waiters.filter(w=>w.loyalty<30).length;
+    G.intensity=Math.min(1, (activeCust/8 + lowLoyalty/3 + G.wave/3)*0.5);
+
+    // Waves (faster: every ~22 seconds)
+    const elapsed=DUR-G.time;
+    const nw=Math.min(3,Math.floor(elapsed/22));
+    if(nw>G.wave){
+      G.wave=nw;
+      const waveNames=['','WAVE 2!','🌋 WAVE 3!','💀 WAVE FINAL!'];
+      announce(waveNames[nw],'#FF8800',1500);
+      G.shakeAmt=4;
+      snd(200,.2,'sawtooth',.08);
+    }
+
+    // Loyalty drain (FASTER: more pressure)
+    G.waiters.forEach(w=>{
+      if(w.state!=='striking') w.loyalty-=0.03*(1+G.wave*0.4)*(dt/16);
+    });
+
+    // PAYDAY shocks (more frequent: at 60s and 30s)
+    if(Math.abs(G.time-60)<.05||Math.abs(G.time-30)<.05){
+      G.waiters.forEach(w=>{w.loyalty-=8;});
+      announce('💸 PAYDAY!','#E74C3C',800);
+      snd(300,.15,'sawtooth',.08);
+    }
+
+    // 15-second warning
+    if(Math.abs(G.time-15)<.05){
+      announce('⏰ 15s!','#E74C3C',1000);
+    }
+
+    // Customer spawn (MUCH FASTER)
+    G.custTimer+=dt;
+    const si=Math.max(800, 1800-G.wave*350);
+    if(G.custTimer>=si){G.custTimer=0;G.spawn();
+      // Double spawn chance in later waves
+      if(G.wave>=2&&Math.random()<.3) setTimeout(()=>G.spawn(),300);
+    }
+
+    // Pay cooldown
+    G.waiters.forEach(w=>{
+      if(w.payCooldown>0) w.payCooldown=Math.max(0,w.payCooldown-dt);
+    });
+
+    // Coin spawning (every 4-7 seconds)
+    G.coinTimer+=dt;
+    const coinInterval=4000+Math.random()*3000;
+    if(G.coinTimer>=coinInterval&&coins.length<3){
+      G.coinTimer=0;spawnCoin();
+    }
+    // Update coins
+    for(let i=coins.length-1;i>=0;i--){
+      const c=coins[i];
+      c.life-=dt/1000;
+      c.bob+=dt/1000;
+      c.sprite.y=toScreen(c.gridC,c.gridR).y-10+Math.sin(c.bob*3)*5;
+      c.sprite.scale.set(1+Math.sin(c.bob*4)*.1);
+      // Fade out near end
+      if(c.life<1) c.sprite.alpha=c.life;
+      if(c.life<=0){
+        dynamicLayer.removeChild(c.sprite);c.sprite.destroy();coins.splice(i,1);
+      }
+    }
+
+    // Kitchen fires (every 8-15 seconds, more frequent in later waves)
+    G.fireTimer+=dt;
+    const fireInterval=Math.max(5000,12000-G.wave*2500);
+    if(G.fireTimer>=fireInterval){
+      G.fireTimer=0;
+      // Pick a random non-burning stove
+      const available=G.stoveFires.map((f,i)=>f?-1:i).filter(i=>i>=0);
+      if(available.length>0){
+        const idx=available[Math.floor(Math.random()*available.length)];
+        G.stoveFires[idx]=true;
+        stoveFireSprites[idx].visible=true;
+        snd(300,.12,'sawtooth',.08);
+      }
+    }
+    // Fire damage: burning stoves cost $2/sec
+    G.stoveFires.forEach((f,i)=>{
+      if(f){
+        G.score-=Math.round(2*dt/1000);
+        const baseY=toScreen(STOVE_POS[i].c,STOVE_POS[i].r).y+TH/2-28;
+        stoveFireSprites[i].y=baseY+Math.sin(G.animTime*8+i)*3;
+        const pulse=1+Math.sin(G.animTime*6+i)*.12;
+        stoveFireSprites[i].scale.set(pulse);
+      }
+    });
+
+    // AI
+    G.waiters.forEach(w=>waiterAI(w,dt));
+
+    // Update waiter sprites
+    G.waiters.forEach(w=>{
+      const pos=toScreen(w.gridC,w.gridR);
+      w.sprite.x=pos.x;w.sprite.y=pos.y;
+      w.sprite.zIndex=isoDepth(w.gridC,w.gridR)+50;
+      const walking=w.state!=='idle'&&w.state!=='striking'&&w.state!=='pickup'&&w.state!=='delivering';
+      if(walking){w.bodyGfx.y=Math.sin(G.animTime*12)*2;}else{w.bodyGfx.y=0;}
+      // Loyalty bar
+      w.barFill.clear();const lp=w.loyalty/100;
+      w.barFill.beginFill(lp>.5?0x2DC653:lp>.25?0xF39C12:0xE74C3C);
+      w.barFill.drawRect(-14,-38,28*lp,4);w.barFill.endFill();
+      w.strikeText.visible=w.state==='striking';
+      if(w.state==='striking')w.strikeText.y=-50+Math.sin(G.animTime*4)*4;
+      // Low loyalty warning glow
+      if(lp<.25&&w.state!=='striking'){
+        w.sprite.alpha=.7+Math.sin(G.animTime*8)*.3;
+      }else{w.sprite.alpha=1;}
+    });
+
+    // Tables
+    G.tables.forEach(t=>{
+      if(t.hasCust&&!t.delivered){
+        t.patience-=dt/1000;
+        const p=Math.max(0,t.patience/t.maxPat);
+        t.bubble._barFill.clear();
+        t.bubble._barFill.beginFill(p>.5?0x2DC653:p>.25?0xF39C12:0xE74C3C);
+        t.bubble._barFill.drawRect(-14,10,28*p,3);t.bubble._barFill.endFill();
+        // Urgent bubble shake
+        const baseY=toScreen(t.gridC,t.gridR).y-28;
+        if(p<.25){
+          t.bubble.y=baseY+Math.sin(G.animTime*15+t.id)*3;
+          t.bubble.scale.set(1+Math.sin(G.animTime*10)*.05);
+        }else{
+          t.bubble.y=baseY+Math.sin(G.animTime*2+t.id)*2;
+          t.bubble.scale.set(1);
+        }
+
+        if(t.patience<=0){
+          t.hasCust=false;t.order=-1;t.patience=0;t.assignedWaiter=-1;t.bubble.visible=false;
+          G.lost++;G.combo=0;G.score-=30;G.shakeAmt=3;
+          sndFail();
+          const pos=toScreen(t.gridC,t.gridR);
+          floatText(world.x+pos.x,world.y+pos.y-50,'-$30','#E74C3C',false);
+          G.waiters.forEach(w=>{
+            if(w.assigned===t.id){
+              w.assigned=-1;w.showTray=false;w.traySprite.visible=false;w.dishIdx=-1;
+              w.state='returning';setPath(w,KITCHEN_POS[w.id].c,KITCHEN_POS[w.id].r);
+            }
+          });
+        }
+      }
+      if(t.delivered){
+        t.eatTimer+=dt/1000;
+        if(t.eatTimer>4){ // slower eating = tables occupied longer
+          t.hasCust=false;t.delivered=false;t.order=-1;t.eatTimer=0;t.vip=false;t.assignedWaiter=-1;
+          t.bubble.visible=false;
+          t.useCount++;
+          // Only dirty after 2-3 customers
+          if(t.useCount>=t.dirtyAfter){
+            t.dirty=true;t.useCount=0;t.dirtyAfter=2+Math.floor(Math.random()*2);
+            if(t.dirtySprite){t.dirtySprite.visible=true;t.dirtySprite.alpha=1;}
+          }
+        }
+      }
+      // Dirty table animation — pulsing and bouncing
+      if(t.dirty&&t.dirtySprite){
+        t.dirtySprite.y=toScreen(t.gridC,t.gridR).y-20+Math.sin(G.animTime*3+t.id)*4;
+        const pulse=.9+Math.sin(G.animTime*5+t.id)*.15;
+        t.dirtySprite.scale.set(pulse);
+        if(t.dirtySprite._glow) t.dirtySprite._glow.alpha=.5+Math.sin(G.animTime*4+t.id)*.3;
+      }
+    });
+
+    // Screen shake
+    if(G.shakeAmt>.1){
+      G.shakeX=(Math.random()-.5)*G.shakeAmt;
+      G.shakeY=(Math.random()-.5)*G.shakeAmt;
+      G.shakeAmt*=.9;
+      world.x=resize.baseX+G.shakeX;
+      world.y=120+G.shakeY;
+    }else{
+      G.shakeX=0;G.shakeY=0;
+      const cw=window.innerWidth-PANEL_W;
+      world.x=cw/2;world.y=120;
+    }
+    // Store base position
+    resize.baseX=world.x-G.shakeX;
+
+    // Particles
+    for(let i=particles.length-1;i>=0;i--){
+      const p=particles[i];p.sprite.x+=p.vx;p.sprite.y+=p.vy;p.vy+=.06;
+      p.life-=p.decay;p.sprite.alpha=p.life;
+      if(p.life<=0){particleLayer.removeChild(p.sprite);p.sprite.destroy();particles.splice(i,1);}
+    }
+
+    updateHUD();
+  }
+});
+
+// ── Init ─────────────────────────────────────────────────────
+resize();
+resize.baseX = world.x;
+</script>
+</body>
+</html>
